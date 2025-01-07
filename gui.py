@@ -29,9 +29,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.plot_fourier = False
         self.create_dataframe = False
 
-        # Removed anything related to comparisons
-        # Removed self.on_clock_path, self.off_clock_path, and self.perform_comparisons
-
         # Initialize variables for new input fields
         self.threshold_percentile = 30.0  # Default threshold percentile
         self.N_hours_inactivity = 12.0    # Default N hours of inactivity
@@ -55,10 +52,10 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
     def initUI(self):
         # Set window title and size
         self.setWindowTitle('CAPy')
-        self.resize(1200, 700)  # Increased width to accommodate new options
+        self.resize(1200, 700)  
 
-        # Set application icon (replace with your icon file path)
-        icon_path = r'capy.jpg'  # Change this to your icon file path
+
+        icon_path = r'capy.jpg' 
         if os.path.exists(icon_path):
             self.setWindowIcon(QtGui.QIcon(icon_path))
 
@@ -115,7 +112,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         file_layout.addWidget(csv_save_button, 1, 0)
         file_layout.addWidget(self.csv_save_label, 1, 1)
 
-        main_layout_tab.addWidget(file_group, 1, 0, 1, 3)  # Span across 3 columns
+        main_layout_tab.addWidget(file_group, 1, 0, 1, 3) 
 
         # Data Range Selection at row 2
         data_range_group = QtWidgets.QGroupBox("Data Range Selection")
@@ -171,7 +168,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         tau_layout.addWidget(QtWidgets.QLabel("Enter Tau Value (hours):"))
         tau_layout.addWidget(self.manual_tau_entry)
 
-        main_layout_tab.addWidget(tau_group, 3, 0, 1, 3)  # Span across 3 columns
+        main_layout_tab.addWidget(tau_group, 3, 0, 1, 3)  
 
         # Input fields for threshold and activity hours at row 4
         input_group = QtWidgets.QGroupBox("Activity Parameters")
@@ -206,14 +203,12 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.checkbox_plot_fourier = QtWidgets.QCheckBox("Generate Periodogram")
         self.checkbox_save_csv = QtWidgets.QCheckBox("Save to CSV")
 
-        # Removed Perform Onset/Offset Clock Lab Comparisons
-
         task_layout.addWidget(self.checkbox_single_actogram)
         task_layout.addWidget(self.checkbox_double_actogram)
         task_layout.addWidget(self.checkbox_plot_fourier)
         task_layout.addWidget(self.checkbox_save_csv)
 
-        main_layout_tab.addWidget(task_group, 5, 0, 3, 1)  # Span 3 rows and 1 column
+        main_layout_tab.addWidget(task_group, 5, 0, 3, 1) 
 
         # Label options and Activity Profile Options
         self.label_group = QtWidgets.QGroupBox("Label Options")
@@ -361,7 +356,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 marker.figure.canvas.draw_idle()
 
     def update_data_range_entry_state(self):
-        # Added for data range selection
+
         if self.data_range_partial_radio.isChecked():
             self.start_day_hour_entry.setEnabled(True)
             self.end_day_hour_entry.setEnabled(True)
@@ -370,22 +365,18 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             self.end_day_hour_entry.setEnabled(False)
 
     def run_analysis(self):
-        # Clear the results text area
+
         self.results_text.clear()
 
-        # Clear the plots tab widget
         while self.plots_tab_widget.count():
             self.plots_tab_widget.removeTab(0)
 
-        # Reset marker dictionary
         self.marker_dict = {}
 
-        # Check if the main data file is selected
         if not self.file_path:
             QtWidgets.QMessageBox.critical(self, "Error", "Please select the main data file before running the analysis.")
             return
 
-        # Load the main data file
         try:
             data = pd.read_csv(self.file_path, header=None)
         except Exception as e:
@@ -424,13 +415,11 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
 
             event_counts = event_counts.iloc[start_bin:end_bin].reset_index(drop=True)
 
-        # For example, if event_counts now has length L:
         L = len(event_counts)
 
         # Truncate data_modified to have exactly 7 header rows plus L data rows
         data_modified = data.iloc[:7+L, :].copy()
 
-        # Now safely assign event_counts
         data_modified.iloc[7:, 0] = event_counts.values
 
         # Initialize ActivityAnalysis
