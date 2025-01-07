@@ -1,7 +1,5 @@
 # CAPy: Circadian Analysis Python
 
-CAPy is a graphical user interface (GUI) application designed for analyzing circadian activity data. Built with PyQt5, this tool allows researchers and enthusiasts to process, visualize, and interpret activity data with ease.
-
 ## Table of Contents
 
 - [Features](#features)
