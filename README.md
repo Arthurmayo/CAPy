@@ -30,10 +30,6 @@ CAPy is a graphical user interface (GUI) application designed for analyzing circ
   - Choose to use calculated free running period (tau) or manually set values.
 
 
-## Screenshots
-
-*(Screenshots can be added here to showcase the GUI and features.)*
-
 ## Installation
   We recomend using anaconda for ease of instillation
 1. **Clone the Repository**
