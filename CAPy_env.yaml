@@ -1,0 +1,10 @@
+name: CAPy
+dependencies:
+  - python=3.12  # Adjust this if you need a specific Python version
+  - pip
+  - pip:
+      - pyqt5
+      - pandas
+      - matplotlib
+      - numpy
+      - scipy
