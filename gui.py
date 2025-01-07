@@ -4,7 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use('Qt5Agg')  # Use the Qt5Agg backend
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import json
 from activity_analysis import ActivityAnalysis
