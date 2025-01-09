@@ -63,7 +63,7 @@
     Run `python gui.py` in your terminal.
 
 2. **Load Data Files**
-
+    - Data must be in the following format to work in CAPy ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
     - Click on **"Select Main Data File"** to load your primary activity CSV file.
     - Optionally, load onset and offset clock data files for comparisons.
 
