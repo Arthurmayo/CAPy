@@ -34,17 +34,24 @@
 
     ```
     git clone https://github.com/yourusername/CAPy.git
-    cd CAPy
     ```
+2. **Navigate to the file location**
 
-2. **Create a Virtual Environment with Dependencies**
+   ```
+   cd C:path\to\where\you\cloned
+   ```
+3. **Create an environment with dependencies**
 
     ```
     conda env create -f CAPy_env.yaml
-    conda activate CAPy
     ```
+4. **Activate environment**
 
-3. **Run the Application**
+  ```
+  conda activate CAPy
+  ```
+
+5. **Run the Application**
 
     ```
     python gui.py
