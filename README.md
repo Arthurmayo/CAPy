@@ -63,27 +63,28 @@
     Run `python gui.py` in your terminal.
 
 2. **Load Data Files**
-    - Data must be in the following format to work in CAPy ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
-    - Click on **"Select Main Data File"** to load your primary activity CSV file.
-    - Optionally, load onset and offset clock data files for comparisons.
 
-3. **Configure Analysis Parameters**
+    - ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
+    - Data must be in the above format with a .csv extension to work in CAPy 
+    - Click on **"Select Main Data File"** to load your primary activity CSV file.
+
+4. **Configure Analysis Parameters**
 
     - Choose the section of time to be used for your data in DD:HH format, or leave blank to use the whole data set
     - Choose to use the calculated tau or manually enter a tau value.
     - Set threshold percentile, N hours of inactivity, and M hours of activity.
     - Select tasks such as generating actograms, plotting Fourier analysis, saving results to CSV, or performing comparisons.
 
-4. **Run Analysis**
+5. **Run Analysis**
 
     Click on **"Run Analysis"** to perform the selected tasks.
 
-5. **Interact with Results**
+6. **Interact with Results**
 
     - View generated plots in the **"Plots"** tab.
     - Drag markers on actograms to adjust onset, offset, acrophase, and bathyphase times.
 
-6. **Save and Load Sessions**
+7. **Save and Load Sessions**
 
     - Use **"Save Session"** to save your current state.
     - Use **"Load Session"** to resume work from a previous session.
