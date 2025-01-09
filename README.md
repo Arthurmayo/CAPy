@@ -1,4 +1,5 @@
-<img ![capy](https://github.com/user-attachments/assets/8880afc9-33d6-4001-843f-206a64c1236b) width="50%">
+<img src="https://github.com/user-attachments/assets/8880afc9-33d6-4001-843f-206a64c1236b" alt="capy" width="50%">
+
 # CAPy: Circadian Analysis Python
 
 ## Table of Contents
