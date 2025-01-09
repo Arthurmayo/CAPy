@@ -11,7 +11,7 @@
   
 ## Features
 
-- **Data Import**: Load main activity data along with optional onset and offset clock data files.
+- **Data Import**: Load collected activity data
 - **Session Management**: Save and load sessions to preserve your work.
 - **Analysis Options**:
   - Generate single and double actograms.
