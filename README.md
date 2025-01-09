@@ -35,7 +35,7 @@
 1. **Clone the Repository**
 
     ```
-    git clone https://github.com/yourusername/CAPy.git
+    git clone https://github.com/Arthurmayo/CAPy.git
     ```
 2. **Navigate to the file location**
 
