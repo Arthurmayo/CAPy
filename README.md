@@ -11,7 +11,7 @@
   
 ## Features
 
-- **Data Import**: Load collected activity data
+- **Data Import**: Load collected activity data (see below for correct formatting)
 - **Session Management**: Save and load sessions to preserve your work.
 - **Analysis Options**:
   - Generate single and double actograms.
