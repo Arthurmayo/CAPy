@@ -45,6 +45,7 @@
     ```
     conda env create -f CAPy_env.yaml
     ```
+    
 4. **Activate environment**
 
   ```
