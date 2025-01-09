@@ -64,7 +64,7 @@
 
 2. **Load Data Files**
 
-    - ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
+   ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
     - Data must be in the above format with a .csv extension to work in CAPy 
     - Click on **"Select Main Data File"** to load your primary activity CSV file.
 
