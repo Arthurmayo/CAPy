@@ -1,6 +1,6 @@
 name: CAPy
 dependencies:
-  - python=3.12  # Adjust this if you need a specific Python version
+  - python=3.12 
   - pip
   - pip:
       - pyqt5
