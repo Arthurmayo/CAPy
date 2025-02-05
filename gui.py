@@ -54,7 +54,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.setWindowTitle('CAPy')
         self.resize(1200, 700)  
 
-
         icon_path = r'capy.jpg' 
         if os.path.exists(icon_path):
             self.setWindowIcon(QtGui.QIcon(icon_path))
@@ -260,6 +259,10 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         plots_layout = QtWidgets.QVBoxLayout(plots_tab)
         self.plots_tab_widget = QtWidgets.QTabWidget()
         plots_layout.addWidget(self.plots_tab_widget)
+        # --- New Export Button added here ---
+        export_markers_button = QtWidgets.QPushButton("Export Markers to CSV")
+        export_markers_button.clicked.connect(self.export_markers_to_csv)
+        plots_layout.addWidget(export_markers_button)
 
         # Create the results tab
         results_tab = QtWidgets.QWidget()
@@ -356,7 +359,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 marker.figure.canvas.draw_idle()
 
     def update_data_range_entry_state(self):
-
         if self.data_range_partial_radio.isChecked():
             self.start_day_hour_entry.setEnabled(True)
             self.end_day_hour_entry.setEnabled(True)
@@ -721,6 +723,113 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.information(self, "Session Loaded", f"Session loaded from {file_path}")
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Failed to load session: {e}")
+
+    def export_markers_to_csv(self):
+        """
+        Export the current (and updated) onset, offset, acrophase, and bathyphase markers
+        to a CSV file. This export now also includes a summary section at the end showing the
+        onset average, offset average, and dominant period (tau).
+        """
+        if not hasattr(self, 'activity') or self.activity is None:
+            QtWidgets.QMessageBox.critical(self, "Error", "No analysis has been run yet. Please run an analysis before exporting markers.")
+            return
+
+        options = QtWidgets.QFileDialog.Options()
+        default_filename = "updated_markers.csv"
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Export Markers to CSV",
+            default_filename,
+            "CSV Files (*.csv);;All Files (*)",
+            options=options
+        )
+        if not file_path:
+            return
+
+        # Determine the number of periods (using the maximum count from all marker lists)
+        num_periods = max(
+            len(self.activity.onset_times),
+            len(self.activity.offset_times),
+            len(self.activity.acrophase_times),
+            len(self.activity.bathophase_times)
+        )
+        
+        onset_list = []
+        offset_list = []
+        acrophase_list = []
+        bathyphase_list = []
+        
+        for i in range(num_periods):
+            # Onset
+            if i < len(self.activity.onset_times):
+                onset_bin = self.activity.onset_times[i]
+                onset_hour = (onset_bin * self.activity.bin_size_minutes) // 60
+                onset_minute = (onset_bin * self.activity.bin_size_minutes) % 60
+                onset_str = f"{onset_hour:02d}:{onset_minute:02d}"
+            else:
+                onset_str = ""
+            onset_list.append(onset_str)
+
+            # Offset
+            if i < len(self.activity.offset_times):
+                offset_bin = self.activity.offset_times[i]
+                offset_hour = (offset_bin * self.activity.bin_size_minutes) // 60
+                offset_minute = (offset_bin * self.activity.bin_size_minutes) % 60
+                offset_str = f"{offset_hour:02d}:{offset_minute:02d}"
+            else:
+                offset_str = ""
+            offset_list.append(offset_str)
+
+            # Acrophase
+            if i < len(self.activity.acrophase_times):
+                acro = self.activity.acrophase_times[i]
+                if isinstance(acro, (list, tuple)) and len(acro) == 2:
+                    acro_str = f"{acro[0]:02d}:{acro[1]:02d}"
+                else:
+                    acro_str = str(acro)
+            else:
+                acro_str = ""
+            acrophase_list.append(acro_str)
+
+            # Bathyphase
+            if i < len(self.activity.bathophase_times):
+                batho = self.activity.bathophase_times[i]
+                if isinstance(batho, (list, tuple)) and len(batho) == 2:
+                    batho_str = f"{batho[0]:02d}:{batho[1]:02d}"
+                else:
+                    batho_str = str(batho)
+            else:
+                batho_str = ""
+            bathyphase_list.append(batho_str)
+
+        df = pd.DataFrame({
+            "Period": [f"Period {i+1}" for i in range(num_periods)],
+            "Onset": onset_list,
+            "Offset": offset_list,
+            "Acrophase": acrophase_list,
+            "Bathyphase": bathyphase_list
+        })
+
+        # Compute updated summary metrics (onset average, offset average, and tau)
+        onset_av, offset_av = self.activity.calculate_mean_on_off(self.activity.onset_times, self.activity.offset_times)
+        tau_str = f"{self.activity.tau:.2f}" if self.activity.tau is not None else ""
+        summary_data = {
+            "Metric": ["Onset Average", "Offset Average", "Dominant Period (Tau)"],
+            "Value": [onset_av, offset_av, tau_str]
+        }
+        df_summary = pd.DataFrame(summary_data)
+
+        try:
+            with open(file_path, 'w', newline='') as f:
+                # Write the marker table
+                df.to_csv(f, index=False)
+                # Write a blank line
+                f.write("\n")
+                # Write the summary section
+                df_summary.to_csv(f, index=False)
+            QtWidgets.QMessageBox.information(self, "Export Successful", f"Markers exported to {file_path}")
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Export Failed", f"Failed to export markers: {e}")
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

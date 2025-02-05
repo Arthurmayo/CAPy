@@ -92,7 +92,6 @@ class ActivityAnalysis:
         self.tau = tau
 
         # Compute significance lines for p=0.05 and p=0.001
-        # Under null: FAP ~ M * exp(-z), solve z = -ln(p/M)
         p_values = [0.05, 0.001]
         sig_amplitudes = {}
         for p_val in p_values:
@@ -102,13 +101,8 @@ class ActivityAnalysis:
         if plot:
             fig, ax = plt.subplots(figsize=(10, 6))
             ax.plot(1 / frequencies, amplitude, 'k-', label='Lomb-Scargle Amplitude')
-            
-            # Significance lines
-            
-
             ax.axvline(x=tau, color='r', linestyle='--', 
                        label=f'Dominant Tau: {tau:.2f} h\nAmplitude: {best_amplitude:.2f}')
-
             ax.set_xlabel('Tau (hours)')
             ax.set_ylabel('Amplitude')
             ax.set_title('Lomb-Scargle Periodogram')
@@ -122,7 +116,6 @@ class ActivityAnalysis:
     def fourier(self, plot=False):
         fft_values = np.fft.fft(self.event_counts)
         frequencies = np.fft.fftfreq(len(self.event_counts), d=self.bin_size_minutes * 60)
-        
         amplitude_spectrum = np.abs(fft_values)
 
         # Exclude zero frequency
@@ -142,13 +135,12 @@ class ActivityAnalysis:
         if len(period_in_hours) == 0:
             raise ValueError("No valid periods found in Fourier analysis.")
 
-        # Identify dominant period
         dominant_index = np.argmax(amplitude_spectrum)
         tau = period_in_hours[dominant_index]
         best_amplitude = amplitude_spectrum[dominant_index]
         self.tau = tau
 
-        M = len(period_in_hours)  # Number of frequencies considered in this range
+        M = len(period_in_hours)
         p_values = [0.05, 0.001]
         sig_amplitudes = {}
         for p_val in p_values:
@@ -158,11 +150,6 @@ class ActivityAnalysis:
         if plot:
             fig, ax = plt.subplots(figsize=(10, 6))
             ax.plot(period_in_hours, amplitude_spectrum, 'k-', label='Amplitude Spectrum')
-
-            # Significance lines
-            
-       
-
             ax.axvline(x=tau, color='r', linestyle='--', 
                        label=f'Dominant Tau: {tau:.2f} h\nAmplitude: {best_amplitude:.2f}')
             ax.set_xlabel('Period (hours)')
@@ -175,78 +162,35 @@ class ActivityAnalysis:
         else:
             return tau
 
-
     def chi_squared(self, plot=False):
-        """
-        Perform a Chi-Squared periodogram analysis to determine the dominant period (tau) in the data
-        by folding the data across candidate periods and testing for non-uniformity.
-
-        Parameters:
-        - plot (bool): If True, plot the Chi-Squared statistics.
-
-        Returns:
-        - tau (float): The candidate period (in hours) that yields the highest Chi-Squared statistic.
-        - fig (matplotlib.figure.Figure): The figure object if plot is True, otherwise None.
-        """
-
-        # Define a range of possible tau values to test
-        possible_taus = np.linspace(10, 36, 260)  # From 10 to 36 hours in 0.1-hour increments
-
+        possible_taus = np.linspace(10, 36, 260)  # 0.1-hour increments
         chi_squared_values = []
-
-        # Convert time points to hours
-        # self.event_counts is assumed to be a 1D array of event counts per bin
-        # self.bin_size_minutes is the duration of each bin in minutes
         time = np.arange(len(self.event_counts)) * (self.bin_size_minutes / 60.0)  # in hours
 
         for tau in possible_taus:
-            # Number of bins per cycle for the given candidate period tau
             bins_per_cycle = int(np.round(tau * 60 / self.bin_size_minutes))
-
             if bins_per_cycle <= 1:
-                # If tau is too small relative to bin size, skip
                 chi_squared_values.append(np.nan)
                 continue
-
-            # Determine how many full cycles we can extract
             num_full_cycles = len(self.event_counts) // bins_per_cycle
-
             if num_full_cycles < 1:
-                # Not enough data to form even one full cycle, skip
                 chi_squared_values.append(np.nan)
                 continue
-
-            # Reshape the data into cycles
-            # Truncate event_counts to multiple of bins_per_cycle for simplicity
             truncated_length = num_full_cycles * bins_per_cycle
             truncated_data = self.event_counts[:truncated_length].to_numpy()
-
-            # Fold the data: shape (num_full_cycles, bins_per_cycle)
             folded_data = truncated_data.reshape((num_full_cycles, bins_per_cycle))
-
-            # Average across cycles to get the mean observed counts for each bin in the cycle
             observed_per_bin = np.mean(folded_data, axis=0)
-
-            # Under the null hypothesis (no rhythm), expected counts are uniform across bins.
             expected = np.full_like(observed_per_bin, np.mean(observed_per_bin))
-
-            # Compute Chi-Squared
-            # Note: chisquare requires observed and expected arrays. Both should be positive.
-            # If event_counts are all >= 0, expected will be > 0, so we are safe.
             chi_sq, p_value = chisquare(f_obs=observed_per_bin, f_exp=expected)
             chi_squared_values.append(chi_sq)
 
         chi_squared_values = np.array(chi_squared_values)
-
-        # Identify the period that yields the largest Chi-Square value
         max_index = np.nanargmax(chi_squared_values)
         tau = possible_taus[max_index]
-
         self.tau = tau
 
         fig = None
         if plot:
-
             fig, ax = plt.subplots(figsize = (10, 6))
             ax.plot(possible_taus, chi_squared_values, 'k-', linestyle='-', label='Chi-Squared')
             ax.set_xlabel('Tau (hours)')
@@ -255,7 +199,6 @@ class ActivityAnalysis:
             ax.axvline(tau, color='r', linestyle='--', label=f"Max Chi-Sq Tau: {tau:.2f} h")
             ax.legend()
             return tau, fig
-
         else:
             return tau
         
@@ -271,10 +214,8 @@ class ActivityAnalysis:
         bins_per_hour = 60 // self.bin_size_minutes
         N_bins = int(N_hours_inactivity * bins_per_hour)
         M_bins = int(M_hours_activity * bins_per_hour)
-
         if N_bins <= 0 or M_bins <= 0:
             raise ValueError("N_bins and M_bins must be positive integers.")
-
         template = np.concatenate((np.full(N_bins, -1), np.full(M_bins, 1)))
         return convolve(binary_activity, template, mode='valid')
 
@@ -293,77 +234,58 @@ class ActivityAnalysis:
     def detect_onset_offset_res(self, convolution_result):
         self.onset_res = []
         self.offset_res = []
-
         total_periods = len(self.onset_times)
-
         for period in range(total_periods):
             try:
                 onset_bin = self.onset_times[period]
                 offset_bin = self.offset_times[period]
-
                 onset_hour = (onset_bin * self.bin_size_minutes) // 60
                 onset_minute = (onset_bin * self.bin_size_minutes) % 60
                 offset_hour = (offset_bin * self.bin_size_minutes) // 60
                 offset_minute = (offset_bin * self.bin_size_minutes) % 60
-
                 self.onset_res.append(f"{int(onset_hour):02d}:{int(onset_minute):02d}")
                 self.offset_res.append(f"{int(offset_hour):02d}:{int(offset_minute):02d}")
             except IndexError:
                 self.onset_res.append("00:00")
                 self.offset_res.append("00:00")
-
         return self.onset_res, self.offset_res
 
     def acro_bathy(self):
         if self.tau is None:
             raise ValueError("Tau has not been determined yet.")
-
         time_axis = np.arange(len(self.event_counts)) * self.bin_size_minutes / 60
         def sine_func(t, A, phi, B):
             return A * np.sin(2 * np.pi * t / self.tau + phi) + B
-
         bins_per_period = self.bins_per_period
-
         self.acrophase_times = []
         self.bathophase_times = []
         self.acro_res = []
         self.batho_res = []
-
         total_periods = len(self.onset_times)
-
         for period in range(total_periods):
             try:
                 period_data = self.padded_event_counts[period * bins_per_period:(period + 1) * bins_per_period]
                 time_period = time_axis[period * bins_per_period:(period + 1) * bins_per_period]
-                
                 if len(period_data) == 0:
                     raise ValueError("No data for this period.")
-
                 initial_guess = [np.std(period_data), 0, np.mean(period_data)]
                 params, params_covariance = curve_fit(sine_func, time_period, period_data, p0=initial_guess)
-
                 A_fit, phi_fit, B_fit = params
                 fitted_wave = sine_func(time_period, A_fit, phi_fit, B_fit)
-
                 acrophase_bin = np.argmax(fitted_wave) 
                 shift_bins = int((self.tau / 2) / (self.bin_size_minutes / 60))
                 bathyphase_bin = (acrophase_bin + shift_bins) % int(bins_per_period)
-
                 acrophase_hour = (acrophase_bin * self.bin_size_minutes) // 60 
                 acrophase_minute = (acrophase_bin * self.bin_size_minutes) % 60
                 bathyphase_hour = (bathyphase_bin * self.bin_size_minutes) // 60
                 bathyphase_minute = (bathyphase_bin * self.bin_size_minutes) % 60
-
                 self.acrophase_times.append((int(acrophase_hour), int(acrophase_minute)))
                 self.bathophase_times.append((int(bathyphase_hour), int(bathyphase_minute)))
-
             except Exception:
                 self.acrophase_times.append((0, 0))
                 self.bathophase_times.append((12, 0))
-
             self.acro_res.append('{0:02d}:{1:02d}'.format(self.acrophase_times[period][0], self.acrophase_times[period][1]))
             self.batho_res.append('{0:02d}:{1:02d}'.format(self.bathophase_times[period][0], self.bathophase_times[period][1]))
-
         return self.acrophase_times, self.bathophase_times, self.acro_res, self.batho_res
 
     def single_actogram(self, label_onset=False, label_offset=False, label_acrophase=False, label_bathyphase=False, on_drag=None, on_release_callback=None):
@@ -374,15 +296,11 @@ class ActivityAnalysis:
             self.padded_event_counts[i * bins_per_period:(i + 1) * bins_per_period]
             for i in range(len(self.padded_event_counts) // bins_per_period)
         ]
-
         fig_height = max(6, len(events_per_period) * 0.3)
         fig, ax = plt.subplots(figsize=(12, fig_height))
-
         time_axis = np.linspace(0, self.tau, bins_per_period)
-
         ax.set_xticks(np.arange(0, self.tau + 1, 2))
         ax.set_xticklabels([f"{int(tick % 24):02d}" for tick in np.arange(0, self.tau + 1, 2)])
-
         cax = ax.imshow(events_per_period, aspect='auto', cmap='Greys', interpolation='none', extent=[0, self.tau, len(events_per_period), 0])
         ax.set_yticks(np.arange(0.5, len(events_per_period), 1))
         ax.set_yticklabels([f"Period {i + 1}" for i in range(len(events_per_period))])
@@ -390,12 +308,10 @@ class ActivityAnalysis:
         ax.set_ylabel('Period')
         ax.set_title(f'Single-Plotted Actogram for {self.event_type}')
         plt.colorbar(cax, ax=ax, orientation='vertical', label='Event Count')
-
         from matplotlib.lines import Line2D
         legend_elements = []
         markers = []
         draggables = []
-
         if label_onset:
             for period, onset_bin in enumerate(self.onset_times):
                 onset_hour = (onset_bin * self.bin_size_minutes) / 60
@@ -404,7 +320,6 @@ class ActivityAnalysis:
                 draggables.append(draggable)
                 markers.append((marker, period, 'onset'))
             legend_elements.append(Line2D([0], [0], marker='o', color='w', label='Onset', markerfacecolor='r', markersize=8))
-
         if label_offset:
             for period, offset_bin in enumerate(self.offset_times):
                 offset_hour = (offset_bin * self.bin_size_minutes) / 60
@@ -413,7 +328,6 @@ class ActivityAnalysis:
                 draggables.append(draggable)
                 markers.append((marker, period, 'offset'))
             legend_elements.append(Line2D([0], [0], marker='o', color='w', label='Offset', markerfacecolor='b', markersize=8))
-
         if label_acrophase:
             for period, acrophase in enumerate(self.acrophase_times):
                 acrophase_time_in_hours = acrophase[0] + acrophase[1] / 60.0
@@ -422,7 +336,6 @@ class ActivityAnalysis:
                 draggables.append(draggable)
                 markers.append((marker, period, 'acrophase'))
             legend_elements.append(Line2D([0], [0], marker='^', color='w', label='Acrophase', markerfacecolor='g', markersize=8))
-
         if label_bathyphase:
             for period, bathyphase in enumerate(self.bathophase_times):
                 bathyphase_time_in_hours = bathyphase[0] + bathyphase[1] / 60.0
@@ -431,7 +344,6 @@ class ActivityAnalysis:
                 draggables.append(draggable)
                 markers.append((marker, period, 'bathyphase'))
             legend_elements.append(Line2D([0], [0], marker='v', color='w', label='Bathyphase', markerfacecolor='m', markersize=8))
-
         plt.tight_layout()
         if legend_elements:
             ax.legend(handles=legend_elements)
@@ -441,7 +353,6 @@ class ActivityAnalysis:
     def double_actogram(self, label_onset=False, label_offset=False, label_acrophase=False, label_bathyphase=False, on_drag=None, on_release_callback=None):
         if self.tau is None:
             raise ValueError("Tau has not been determined yet.")
-
         self.bins_per_period = int((self.tau * 60) / self.bin_size_minutes)
         num_periods = len(self.padded_event_counts) // self.bins_per_period
         double_plotted_events = np.array([
@@ -451,30 +362,23 @@ class ActivityAnalysis:
             ])
             for i in range(num_periods)
         ])
-
         fig_height = max(6, double_plotted_events.shape[0] * 0.3)
         fig, ax = plt.subplots(figsize=(16, fig_height))
-
         ax.set_xticks(np.arange(0, 2 * self.tau + 1, 2))
         ax.set_xticklabels([f"{int(tick % 24):02d}" for tick in np.arange(0, 2 * self.tau + 1, 2)])
-        
         cax = ax.imshow(double_plotted_events, aspect='auto', cmap='Greys', interpolation='none',
                         extent=[0, 2 * self.tau, double_plotted_events.shape[0], 0])
-
         ax.set_yticks(np.arange(0.5, double_plotted_events.shape[0], 1))
         ax.set_yticklabels([f"Period {i + 1}" for i in range(double_plotted_events.shape[0])])
         ax.set_xlabel('Time of Day (Double Plotted)')
         ax.set_ylabel('Period')
         ax.set_title(f'Double-Plotted Actogram for {self.event_type}')
-
         ax.axvline(x=self.tau, color='red', linestyle='-', label=f'{self.tau:.2f} Hours')
         plt.colorbar(cax, ax=ax, orientation='vertical', label='Event Count')
-
         from matplotlib.lines import Line2D
         legend_elements = []
         markers = []
         draggables = []
-
         def create_double_markers(times_list, marker_style, color, label, is_tuple=False, label_type=None):
             for period in range(len(times_list)):
                 time_value_period_i = times_list[period]
@@ -482,30 +386,25 @@ class ActivityAnalysis:
                     time_in_hours_period_i = time_value_period_i[0] + time_value_period_i[1] / 60.0
                 else:
                     time_in_hours_period_i = (time_value_period_i * self.bin_size_minutes) / 60.0
-
                 marker1, = ax.plot(time_in_hours_period_i % self.tau, period + 0.5, marker_style, color=color, picker=5)
                 draggable1 = DraggableMarker(marker1, times_list, period, self.bin_size_minutes, is_tuple=is_tuple,
                                              on_drag=on_drag, day=period, label_type=label_type, on_release_callback=on_release_callback)
                 draggables.append(draggable1)
                 markers.append((marker1, period, label_type))
-
                 if period + 1 < len(times_list):
                     time_value_period_i_plus_1 = times_list[period + 1]
                     if is_tuple:
                         time_in_hours_period_i_plus_1 = time_value_period_i_plus_1[0] + time_value_period_i_plus_1[1] / 60.0
                     else:
                         time_in_hours_period_i_plus_1 = (time_value_period_i_plus_1 * self.bin_size_minutes) / 60.0
-
                     marker2, = ax.plot((time_in_hours_period_i_plus_1 % self.tau) + self.tau, period + 0.5, marker_style, color=color, picker=5)
                     draggable2 = DraggableMarker(marker2, times_list, period + 1, self.bin_size_minutes, is_tuple=is_tuple,
                                                  on_drag=on_drag, day=period + 1, label_type=label_type, on_release_callback=on_release_callback)
                     draggables.append(draggable2)
                     markers.append((marker2, period + 1, label_type))
-
                 if period == 0:
                     legend_elements.append(Line2D([0], [0], marker=marker_style, color='w', label=label,
                                                   markerfacecolor=color, markersize=8))
-
         if label_onset:
             create_double_markers(self.onset_times, 'o', 'red', 'Onset', label_type='onset')
         if label_offset:
@@ -514,7 +413,6 @@ class ActivityAnalysis:
             create_double_markers(self.acrophase_times, '^', 'green', 'Acrophase', is_tuple=True, label_type='acrophase')
         if label_bathyphase:
             create_double_markers(self.bathophase_times, 'v', 'magenta', 'Bathyphase', is_tuple=True, label_type='bathyphase')
-
         plt.tight_layout()
         if legend_elements:
             ax.legend(handles=legend_elements)
@@ -528,7 +426,6 @@ class ActivityAnalysis:
         else:
             bins_per_day = int(24 * 60 / self.bin_size_minutes)
             period_hours = 24
-
         total_periods = len(self.padded_event_counts) // bins_per_day
         truncated_event_counts = self.padded_event_counts[:total_periods * bins_per_day]
         event_counts_by_period = truncated_event_counts.reshape((total_periods, bins_per_day))
@@ -536,16 +433,12 @@ class ActivityAnalysis:
         sem_activity = np.std(event_counts_by_period, axis=0) / np.sqrt(total_periods)
         time_axis = np.linspace(0, period_hours, bins_per_day, endpoint=False)
         com = np.sum(time_axis * average_activity) / np.sum(average_activity)
-
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(time_axis, average_activity, color='skyblue', marker='', linestyle='-', label='Average Activity')
-
         if display_sem:
             ax.fill_between(time_axis, average_activity - sem_activity, average_activity + sem_activity, color='lightblue', alpha=0.5, label='SEM')
-
         if display_com:
             ax.axvline(x=com, color='red', linestyle='--', label=f'Center of Mass: {com:.2f} h')
-
         ax.set_xlabel('Time of Day (hours)')
         ax.set_ylabel('Average Activity Count')
         ax.set_title('Activity Profile')
@@ -553,7 +446,6 @@ class ActivityAnalysis:
         ax.set_xlim(0, period_hours)
         ax.legend()
         ax.grid(True, linestyle='--', alpha=0.5)
-
         plt.tight_layout()
         return fig
 
@@ -562,22 +454,18 @@ class ActivityAnalysis:
         for onset_bin in onset_times:
             onset_hour = (onset_bin * self.bin_size_minutes) / 60
             onset_av.append(onset_hour)
-
         onset_av = np.mean(onset_av)
         hours = int(onset_av) % 24
         minutes = int((onset_av - int(onset_av)) * 60)
         onset_av_time = f"{hours:02d}:{minutes:02d}"
-
         offset_av = []
         for offset_bin in offset_times:
             offset_hour = (offset_bin * self.bin_size_minutes) / 60
             offset_av.append(offset_hour)
-
         offset_av = np.mean(offset_av)
         hours = int(offset_av) % 24
         minutes = int((offset_av - int(offset_av)) * 60)
         offset_av_time = f"{hours:02d}:{minutes:02d}"
-
         return onset_av_time, offset_av_time
 
     def results_writer(self, onset_res, offset_res, acro_res, batho_res, tau, onset_av, offset_av):
@@ -586,7 +474,6 @@ class ActivityAnalysis:
         offset_res = offset_res + [None] * (max_len - len(offset_res))
         acro_res = acro_res + [None] * (max_len - len(acro_res))
         batho_res = batho_res + [None] * (max_len - len(batho_res))
-
         results = {
             'Onset_Times': onset_res, 
             'Offset_Times': offset_res,
@@ -596,7 +483,6 @@ class ActivityAnalysis:
             'Onset_Average': [onset_av] * max_len,
             'Offset_Average': [offset_av] * max_len
         }
-
         df = pd.DataFrame(results)
         print(df)
         return df
@@ -672,7 +558,6 @@ class DraggableMarker:
         self.marker.set_animated(False)
         self.background = None
         self.canvas.draw()
-        
         if self.on_release_callback:
             self.on_release_callback()
 
