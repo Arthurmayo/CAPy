@@ -11,14 +11,21 @@ from activity_analysis import ActivityAnalysis
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from converter import convert_awd_to_csv
 
 class ActivityAnalysisGUI(QtWidgets.QMainWindow):
+    """
+    A PyQt-based GUI for loading, analyzing, and plotting circadian activity data.
+    """
     def __init__(self):
+        """
+        Initialize the main GUI application window and all its widgets.
+        """
         super().__init__()
 
         # Initialize variables to hold file paths and other inputs
         self.file_path = None
-        self.csv_save_path = None  # New variable for CSV save path
+        self.csv_save_path = None  
 
         self.use_calculated_tau = True
         self.manual_tau = None
@@ -30,9 +37,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.create_dataframe = False
 
         # Initialize variables for new input fields
-        self.threshold_percentile = 30.0  # Default threshold percentile
-        self.N_hours_inactivity = 12.0    # Default N hours of inactivity
-        self.M_hours_activity = 12.0      # Default M hours of activity
+        self.threshold_percentile = 30.0  
+        self.N_hours_inactivity = 12.0
+        self.M_hours_activity = 12.0
 
         # Initialize variables for label options in actograms
         self.label_onset = False
@@ -43,77 +50,78 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         # Initialize variables for activity profile options
         self.display_com = False
         self.display_sem = False
-        self.base_on_tau = True  # Default to base on tau
+        self.base_on_tau = True  
 
-        self.marker_dict = {}  # Initialize marker dictionary
+        self.marker_dict = {}  
+
+        # NEW: A boolean to remember if user wants a 12-hour shift
+        self.shift_12h = False
 
         self.initUI()
 
     def initUI(self):
+        """
+        Build and lay out all GUI elements (buttons, tabs, panels, etc.).
+        """
         # Set window title and size
         self.setWindowTitle('CAPy')
-        self.resize(1200, 700)  
+        self.resize(1200, 700)
 
-        icon_path = r'capy.jpg' 
+        icon_path = r'capy.jpg'
         if os.path.exists(icon_path):
             self.setWindowIcon(QtGui.QIcon(icon_path))
 
-        # Create central widget and layout
+        # Main layout
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
-
         main_layout = QtWidgets.QVBoxLayout(central_widget)
+
+        # 1. Convert/Clean AWD to CSV Button at the Very Top
+        awd_layout = QtWidgets.QHBoxLayout()
+        convert_awd_button = QtWidgets.QPushButton("Convert/Clean AWD to CSV")
+        convert_awd_button.clicked.connect(self.convert_awd_file)
+        awd_layout.addWidget(convert_awd_button)
+        main_layout.addLayout(awd_layout)
 
         # Create tabs
         tabs = QtWidgets.QTabWidget()
         main_layout.addWidget(tabs)
 
-        # Create the main tab
+        # Main Tab
         main_tab = QtWidgets.QWidget()
         tabs.addTab(main_tab, "Main")
-
-        # Layout for the main tab using QGridLayout
         main_layout_tab = QtWidgets.QGridLayout(main_tab)
 
-        # 1. Add Save and Load Session Buttons at the Top
+        # Session Layout (Save/Load)
         session_layout = QtWidgets.QHBoxLayout()
-
-        # Save Session button
         save_session_button = QtWidgets.QPushButton("Save Session")
         save_session_button.clicked.connect(self.save_session)
-
-        # Load Session button
         load_session_button = QtWidgets.QPushButton("Load Session")
         load_session_button.clicked.connect(self.load_session)
-
         session_layout.addWidget(save_session_button)
         session_layout.addWidget(load_session_button)
-
-        # Place session buttons at row 0
         main_layout_tab.addLayout(session_layout, 0, 0, 1, 3)
 
-        # File selection section at row 1
+        # File selection area
         file_group = QtWidgets.QGroupBox("Data Files")
         file_layout = QtWidgets.QGridLayout()
         file_group.setLayout(file_layout)
 
-        # Main data file
         self.main_file_label = QtWidgets.QLabel("No file selected")
         main_file_button = QtWidgets.QPushButton("Select Main Data File")
         main_file_button.clicked.connect(self.select_main_data_file)
         file_layout.addWidget(main_file_button, 0, 0)
         file_layout.addWidget(self.main_file_label, 0, 1)
 
-        # CSV Save Path
         self.csv_save_label = QtWidgets.QLabel("No CSV save path selected")
         csv_save_button = QtWidgets.QPushButton("Select CSV Save Path")
         csv_save_button.clicked.connect(self.select_csv_save_path)
         file_layout.addWidget(csv_save_button, 1, 0)
         file_layout.addWidget(self.csv_save_label, 1, 1)
 
-        main_layout_tab.addWidget(file_group, 1, 0, 1, 3) 
+        main_layout_tab.addWidget(file_group, 1, 0, 1, 3)
 
-        # Data Range Selection at row 2
+        # Data Range Selection area
         data_range_group = QtWidgets.QGroupBox("Data Range Selection")
         data_range_layout = QtWidgets.QVBoxLayout()
         data_range_group.setLayout(data_range_layout)
@@ -129,7 +137,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.end_day_hour_entry = QtWidgets.QLineEdit()
         self.start_day_hour_entry.setPlaceholderText("Start (Day:Hour)")
         self.end_day_hour_entry.setPlaceholderText("End (Day:Hour)")
-
         self.start_day_hour_entry.setEnabled(False)
         self.end_day_hour_entry.setEnabled(False)
 
@@ -137,14 +144,17 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         day_hour_layout.addWidget(self.start_day_hour_entry)
         day_hour_layout.addWidget(QtWidgets.QLabel("End:"))
         day_hour_layout.addWidget(self.end_day_hour_entry)
-
         data_range_layout.addLayout(day_hour_layout)
 
-        self.data_range_partial_radio.toggled.connect(self.update_data_range_entry_state)
+        
+        shift_button = QtWidgets.QPushButton("Shift Data by 12h")
+        shift_button.clicked.connect(self.toggle_shift_12h)
+        data_range_layout.addWidget(shift_button)
 
+        self.data_range_partial_radio.toggled.connect(self.update_data_range_entry_state)
         main_layout_tab.addWidget(data_range_group, 2, 0, 1, 3)
 
-        # Tau selection at row 3
+        # Tau selection area
         tau_group = QtWidgets.QGroupBox("Free Running Period (Tau) Selection")
         tau_layout = QtWidgets.QVBoxLayout()
         tau_group.setLayout(tau_layout)
@@ -167,9 +177,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         tau_layout.addWidget(QtWidgets.QLabel("Enter Tau Value (hours):"))
         tau_layout.addWidget(self.manual_tau_entry)
 
-        main_layout_tab.addWidget(tau_group, 3, 0, 1, 3)  
+        main_layout_tab.addWidget(tau_group, 3, 0, 1, 3)
 
-        # Input fields for threshold and activity hours at row 4
+        # Input fields for threshold and activity hours
         input_group = QtWidgets.QGroupBox("Activity Parameters")
         input_layout = QtWidgets.QGridLayout()
         input_group.setLayout(input_layout)
@@ -185,9 +195,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         input_layout.addWidget(QtWidgets.QLabel("M Hours of Activity:"), 2, 0)
         input_layout.addWidget(self.M_activity_entry, 2, 1)
 
-        main_layout_tab.addWidget(input_group, 4, 0, 1, 3)  # Span across 3 columns
+        main_layout_tab.addWidget(input_group, 4, 0, 1, 3)
 
-        # Task selection at row 5
+        # Task selection
         task_group = QtWidgets.QGroupBox("Select Tasks")
         task_layout = QtWidgets.QVBoxLayout()
         task_group.setLayout(task_layout)
@@ -207,7 +217,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         task_layout.addWidget(self.checkbox_plot_fourier)
         task_layout.addWidget(self.checkbox_save_csv)
 
-        main_layout_tab.addWidget(task_group, 5, 0, 3, 1) 
+        main_layout_tab.addWidget(task_group, 5, 0, 3, 1)
 
         # Label options and Activity Profile Options
         self.label_group = QtWidgets.QGroupBox("Label Options")
@@ -239,58 +249,80 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.activity_profile_options_layout.addWidget(self.checkbox_base_on_tau)
 
         self.activity_profile_options_group.setVisible(False)
-
-        # Place activity_profile_options_group in column 1 of row 5
         main_layout_tab.addWidget(self.activity_profile_options_group, 5, 1, 3, 1)
-        # Place label_group in column 2 of row 5
         main_layout_tab.addWidget(self.label_group, 5, 2, 3, 1)
 
-        self.checkbox_activity_profile.stateChanged.connect(self.toggle_activity_profile_options)
+        self.checkbox_activity_profile.stateChanged.connect(self.toggle_shift_12h)
 
-        # Run analysis button at row 8
+        # Run Analysis button
         run_button = QtWidgets.QPushButton("Run Analysis")
         run_button.clicked.connect(self.run_analysis)
         main_layout_tab.addWidget(run_button, 8, 0, 1, 3)
 
-        # Create the plots tab
+        # Plots tab
         plots_tab = QtWidgets.QWidget()
         tabs.addTab(plots_tab, "Plots")
-
         plots_layout = QtWidgets.QVBoxLayout(plots_tab)
+
         self.plots_tab_widget = QtWidgets.QTabWidget()
         plots_layout.addWidget(self.plots_tab_widget)
-        # --- New Export Button added here ---
+
         export_markers_button = QtWidgets.QPushButton("Export Markers to CSV")
         export_markers_button.clicked.connect(self.export_markers_to_csv)
         plots_layout.addWidget(export_markers_button)
 
-        # Create the results tab
+        # Results tab
         results_tab = QtWidgets.QWidget()
         tabs.addTab(results_tab, "Results")
-
         results_layout = QtWidgets.QVBoxLayout(results_tab)
+
         self.results_text = QtWidgets.QTextEdit()
         self.results_text.setReadOnly(True)
         results_layout.addWidget(self.results_text)
 
-        # Status bar
+        # Status Bar
         self.status_bar = QtWidgets.QStatusBar()
         self.setStatusBar(self.status_bar)
 
-    def toggle_activity_profile_options(self, state):
-        if state == QtCore.Qt.Checked:
-            self.activity_profile_options_group.setVisible(True)
+    def toggle_shift_12h(self):
+        """
+        Toggle whether we shift the data by 12 hours before analysis.
+        This simply sets a boolean flag (self.shift_12h); the actual shift is done in run_analysis().
+        """
+        self.shift_12h = not self.shift_12h
+        if self.shift_12h:
+            QtWidgets.QMessageBox.information(
+                self,
+                "12h Shift Enabled",
+                "Data will be shifted by 12 hours when you run the analysis."
+            )
         else:
-            self.activity_profile_options_group.setVisible(False)
+            QtWidgets.QMessageBox.information(
+                self,
+                "12h Shift Disabled",
+                "12-hour shift is now disabled."
+            )
 
     def select_main_data_file(self):
+        """
+        Show a file dialog to select the main CSV data file and update self.file_path accordingly.
+        """
         options = QtWidgets.QFileDialog.Options()
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Main Data CSV File", "", "CSV Files (*.csv)", options=options)
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select Main Data CSV File",
+            "",
+            "CSV Files (*.csv)",
+            options=options
+        )
         if file_path:
             self.file_path = file_path
             self.main_file_label.setText(self.file_path)
 
     def select_csv_save_path(self):
+        """
+        Show a file dialog to select or create a CSV file path where output data can be saved.
+        """
         options = QtWidgets.QFileDialog.Options()
         default_filename = "mean_values.csv"
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -305,6 +337,10 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             self.csv_save_label.setText(self.csv_save_path)
 
     def update_tau_entry_state(self):
+        """
+        Enable or disable the Tau entry fields depending on whether
+        'Use Calculated Tau' or 'Enter Tau Manually' is selected.
+        """
         if self.tau_radio_calculated.isChecked():
             self.tau_method_combo.setEnabled(True)
             self.manual_tau_entry.setEnabled(False)
@@ -313,12 +349,24 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             self.manual_tau_entry.setEnabled(True)
 
     def update_label_options_state(self):
+        """
+        Show or hide the label options group depending on whether
+        single or double actogram generation is requested.
+        """
         if self.checkbox_single_actogram.isChecked() or self.checkbox_double_actogram.isChecked():
             self.label_group.setVisible(True)
         else:
             self.label_group.setVisible(False)
 
     def add_plot(self, figure, title, markers=[]):
+        """
+        Add a new plot (figure) to the 'Plots' tab as a new tab.
+
+        Parameters:
+            figure (matplotlib.figure.Figure): The figure to display.
+            title (str): The name of the tab.
+            markers (list): A list of (marker, day, label_type) for any draggable markers present.
+        """
         plot_widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(plot_widget)
         canvas = FigureCanvas(figure)
@@ -334,6 +382,14 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             self.marker_dict[key].append(marker)
 
     def on_marker_drag(self, day, label_type, new_time):
+        """
+        Callback for when a draggable marker is moved. Updates the underlying activity data.
+
+        Parameters:
+            day (int): The index of the day/period in which the marker is present.
+            label_type (str): 'onset', 'offset', 'acrophase', or 'bathyphase'.
+            new_time (float): The new (hour) position for the marker.
+        """
         activity = self.activity
         if label_type == 'onset':
             new_bin = int((new_time % 24) * 60 / activity.bin_size_minutes)
@@ -349,8 +405,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             hours = int(new_time % 24)
             minutes = int((new_time % 24 - hours) * 60)
             activity.bathophase_times[day] = (hours, minutes)
-        else:
-            pass
 
         key = (day, label_type)
         if key in self.marker_dict:
@@ -359,6 +413,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 marker.figure.canvas.draw_idle()
 
     def update_data_range_entry_state(self):
+        """
+        Enable or disable the Start/End data range fields depending on the radio selection.
+        """
         if self.data_range_partial_radio.isChecked():
             self.start_day_hour_entry.setEnabled(True)
             self.end_day_hour_entry.setEnabled(True)
@@ -367,38 +424,69 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             self.end_day_hour_entry.setEnabled(False)
 
     def run_analysis(self):
-
+        """
+        Main entry point for performing the circadian activity analysis.
+        Loads data, optionally shifts by 12h, calculates tau, generates plots, etc.
+        """
         self.results_text.clear()
 
+        # Clear existing plots
         while self.plots_tab_widget.count():
             self.plots_tab_widget.removeTab(0)
-
         self.marker_dict = {}
 
         if not self.file_path:
-            QtWidgets.QMessageBox.critical(self, "Error", "Please select the main data file before running the analysis.")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                "Please select the main data file before running the analysis."
+            )
             return
 
+        # Load data
         try:
             data = pd.read_csv(self.file_path, header=None)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", f"Error loading main data file: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Error loading main data file: {e}"
+            )
             return
 
-        # Extract necessary info
+        # Extract basic info
         try:
-            start_hour = data.iloc[2, 0]
+            start_hour_str = data.iloc[2, 0]
             bin_size_minutes = int(float(data.iloc[3, 0])) // 4
             event_type = data.iloc[0, 0]
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", f"Error extracting data from main file: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Error extracting data from main file: {e}"
+            )
             return
 
-        # Extract raw event counts
+        # Shift data by 12h if requested
+        if self.shift_12h:
+            try:
+                hour_part, minute_part = start_hour_str.split(':')
+                hour_val = int(hour_part)
+                min_val = int(minute_part)
+                hour_val = (hour_val + 12) % 24
+                start_hour_str = f"{hour_val:02d}:{min_val:02d}"
+            except:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Shift Warning",
+                    "Could not parse start hour string. 12h shift skipped."
+                )
+
+        # Convert the event counts
         raw_event_counts = data.iloc[7:, 0]
         event_counts = pd.to_numeric(raw_event_counts, errors='coerce').fillna(0).astype(int)
 
-        # Handle partial data if selected
+        # Handle partial range if selected
         if self.data_range_partial_radio.isChecked():
             start_str = self.start_day_hour_entry.text().strip()
             end_str = self.end_day_hour_entry.text().strip()
@@ -411,21 +499,24 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
 
             start_hour_total = parse_day_hour(start_str)
             end_hour_total = parse_day_hour(end_str)
-
             start_bin = int(start_hour_total * 60 / bin_size_minutes)
             end_bin = int(end_hour_total * 60 / bin_size_minutes)
-
             event_counts = event_counts.iloc[start_bin:end_bin].reset_index(drop=True)
 
         L = len(event_counts)
+        data_modified = data.iloc[:7 + L, :].copy()
 
-        # Truncate data_modified to have exactly 7 header rows plus L data rows
-        data_modified = data.iloc[:7+L, :].copy()
-
+        # Update the start hour if we shifted
+        data_modified.iloc[2, 0] = start_hour_str
         data_modified.iloc[7:, 0] = event_counts.values
 
         # Initialize ActivityAnalysis
-        self.activity = ActivityAnalysis(data_modified, start_hour, bin_size_minutes, event_type)
+        self.activity = ActivityAnalysis(
+            data_modified,
+            start_hour_str,
+            bin_size_minutes,
+            event_type
+        )
         activity = self.activity
 
         # Determine tau
@@ -452,11 +543,19 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                     else:
                         tau = activity.lomb_scargle(plot=False)
                 else:
-                    QtWidgets.QMessageBox.critical(self, "Error", f"Unknown tau calculation method: {selected_method}")
+                    QtWidgets.QMessageBox.critical(
+                        self,
+                        "Error",
+                        f"Unknown tau calculation method: {selected_method}"
+                    )
                     return
                 self.results_text.append(f"Using calculated free running period: {tau:.2f} hours\n")
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Error in {selected_method} tau calculation: {e}")
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Error in {selected_method} tau calculation: {e}"
+                )
                 return
         else:
             try:
@@ -464,28 +563,37 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 activity.tau = tau
                 self.results_text.append(f"Using manually entered free running period: {tau:.2f} hours\n")
                 if self.plot_fourier:
-                    # Perform Fourier analysis for plotting purposes
-                    tau_temp, fig = activity.fourier(plot=True)
+                    _, fig = activity.fourier(plot=True)
                     self.add_plot(fig, "Fourier Analysis")
             except ValueError:
-                QtWidgets.QMessageBox.critical(self, "Error", "Invalid tau value. Please enter a numerical value.")
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Invalid tau value. Please enter a numerical value."
+                )
                 return
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Error in Fourier analysis: {e}")
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Error in Fourier analysis: {e}"
+                )
                 return
 
         activity.tau = tau
-
-        # Calculate bins_per_period
         activity.bins_per_period = int((tau * 60) / activity.bin_size_minutes)
 
-        # Retrieve user inputs
+        # Get user inputs for threshold, inactivity, activity
         try:
             self.threshold_percentile = float(self.threshold_entry.text())
             self.N_hours_inactivity = float(self.N_inactivity_entry.text())
             self.M_hours_activity = float(self.M_activity_entry.text())
         except ValueError:
-            QtWidgets.QMessageBox.critical(self, "Error", "Invalid input for threshold or N/M hours. Please enter numerical values.")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                "Invalid input for threshold or N/M hours. Please enter numerical values."
+            )
             return
 
         # Retrieve activity profile options
@@ -495,14 +603,29 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
 
         # Perform analysis steps
         binary_activity = activity.calculate_binary_activity(self.threshold_percentile)
-        convolution_result = activity.perform_convolution(binary_activity, N_hours_inactivity=self.N_hours_inactivity, M_hours_activity=self.M_hours_activity)
+        convolution_result = activity.perform_convolution(
+            binary_activity,
+            N_hours_inactivity=self.N_hours_inactivity,
+            M_hours_activity=self.M_hours_activity
+        )
         activity.detect_onset_offset(convolution_result)
         activity.detect_onset_offset_res(convolution_result)
         activity.acro_bathy()
-        onset_av, offset_av = activity.calculate_mean_on_off(activity.onset_times, activity.offset_times)
-        df = activity.results_writer(activity.onset_res, activity.offset_res, activity.acro_res, activity.batho_res, tau, onset_av, offset_av)
+        onset_av, offset_av = activity.calculate_mean_on_off(
+            activity.onset_times,
+            activity.offset_times
+        )
+        df = activity.results_writer(
+            activity.onset_res,
+            activity.offset_res,
+            activity.acro_res,
+            activity.batho_res,
+            tau,
+            onset_av,
+            offset_av
+        )
 
-        # Label options
+        # Handle actogram and activity profile checkboxes
         self.label_onset = self.checkbox_label_onset.isChecked()
         self.label_offset = self.checkbox_label_offset.isChecked()
         self.label_acrophase = self.checkbox_label_acrophase.isChecked()
@@ -515,7 +638,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 label_acrophase=self.label_acrophase,
                 label_bathyphase=self.label_bathyphase,
                 on_drag=self.on_marker_drag,
-                on_release_callback=self.regenerate_single_actogram 
+                on_release_callback=self.regenerate_single_actogram
             )
             self.add_plot(fig, "Single Actogram", markers)
 
@@ -529,7 +652,7 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 on_release_callback=self.regenerate_double_actogram
             )
             self.add_plot(fig, "Double Actogram", markers)
-        
+
         if self.checkbox_activity_profile.isChecked():
             try:
                 fig = activity.plot_activity_profile(
@@ -539,7 +662,11 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 )
                 self.add_plot(fig, "Activity Profile")
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Error generating Activity Profile: {e}")
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Error generating Activity Profile: {e}"
+                )
                 return
 
         if self.checkbox_save_csv.isChecked():
@@ -568,14 +695,15 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         self.status_bar.showMessage("Analysis complete.", 5000)
 
     def regenerate_single_actogram(self):
+        """
+        Re-generate the Single Actogram plot after markers have been dragged.
+        """
         try:
-            # First remove existing Single Actogram tab if present
             for i in range(self.plots_tab_widget.count()):
                 if self.plots_tab_widget.tabText(i) == "Single Actogram":
                     self.plots_tab_widget.removeTab(i)
                     break
 
-            # Recreate the single actogram with updated times
             fig, markers = self.activity.single_actogram(
                 label_onset=self.label_onset,
                 label_offset=self.label_offset,
@@ -589,6 +717,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "Error", f"Failed to regenerate Single Actogram: {e}")
 
     def regenerate_double_actogram(self):
+        """
+        Re-generate the Double Actogram plot after markers have been dragged.
+        """
         try:
             fig, markers = self.activity.double_actogram(
                 label_onset=self.label_onset,
@@ -608,8 +739,15 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 break
 
     def save_session(self):
+        """
+        Save the current session (file paths, parameters, marker positions, etc.) to a JSON file.
+        """
         if not hasattr(self, 'activity') or self.activity is None:
-            QtWidgets.QMessageBox.critical(self, "Error", "No analysis has been run yet. Please run an analysis before saving the session.")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                "No analysis has been run yet. Please run an analysis before saving the session."
+            )
             return
 
         session_data = {
@@ -619,7 +757,9 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             'N_hours_inactivity': self.N_hours_inactivity,
             'M_hours_activity': self.M_hours_activity,
             'tau_radio_calculated': self.tau_radio_calculated.isChecked(),
-            'tau_calculation_method': self.tau_method_combo.currentText() if self.tau_radio_calculated.isChecked() else None,
+            'tau_calculation_method': (
+                self.tau_method_combo.currentText() if self.tau_radio_calculated.isChecked() else None
+            ),
             'manual_tau': self.manual_tau_entry.text(),
             'checkboxes': {
                 'single_actogram': self.checkbox_single_actogram.isChecked(),
@@ -642,19 +782,39 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 'bathophase_times': self.activity.bathophase_times,
             }
         }
+
         options = QtWidgets.QFileDialog.Options()
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save Session", "", "JSON Files (*.json)", options=options)
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Session",
+            "",
+            "JSON Files (*.json)",
+            options=options
+        )
         if file_path:
             try:
                 with open(file_path, 'w') as f:
                     json.dump(session_data, f, indent=4)
-                QtWidgets.QMessageBox.information(self, "Session Saved", f"Session saved to {file_path}")
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Session Saved",
+                    f"Session saved to {file_path}"
+                )
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Failed to save session: {e}")
 
     def load_session(self):
+        """
+        Load a previously saved session from a JSON file, restoring file paths, parameters, and markers.
+        """
         options = QtWidgets.QFileDialog.Options()
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load Session", "", "JSON Files (*.json)", options=options)
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load Session",
+            "",
+            "JSON Files (*.json)",
+            options=options
+        )
         if file_path:
             try:
                 with open(file_path, 'r') as f:
@@ -674,9 +834,12 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
 
                 self.tau_radio_calculated.setChecked(session_data.get('tau_radio_calculated', True))
                 if self.tau_radio_calculated.isChecked():
-                    self.tau_method_combo.setCurrentText(session_data.get('tau_calculation_method', "Fourier Analysis"))
+                    self.tau_method_combo.setCurrentText(
+                        session_data.get('tau_calculation_method', "Fourier Analysis")
+                    )
                 else:
                     self.tau_method_combo.setCurrentIndex(-1)
+
                 self.manual_tau_entry.setText(session_data.get('manual_tau', ''))
                 self.update_tau_entry_state()
 
@@ -701,7 +864,11 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                         try:
                             data = pd.read_csv(self.file_path, header=None)
                         except Exception as e:
-                            QtWidgets.QMessageBox.critical(self, "Error", f"Error loading main data file: {e}")
+                            QtWidgets.QMessageBox.critical(
+                                self,
+                                "Error",
+                                f"Error loading main data file: {e}"
+                            )
                             return
 
                         try:
@@ -709,7 +876,11 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                             bin_size_minutes = int(float(data.iloc[3, 0])) // 4
                             event_type = data.iloc[0, 0]
                         except Exception as e:
-                            QtWidgets.QMessageBox.critical(self, "Error", f"Error extracting data from main file: {e}")
+                            QtWidgets.QMessageBox.critical(
+                                self,
+                                "Error",
+                                f"Error extracting data from main file: {e}"
+                            )
                             return
 
                         self.activity = ActivityAnalysis(data, start_hour, bin_size_minutes, event_type)
@@ -720,18 +891,25 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
                 self.activity.bathophase_times = marker_positions.get('bathophase_times', [])
 
                 self.run_analysis()
-                QtWidgets.QMessageBox.information(self, "Session Loaded", f"Session loaded from {file_path}")
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Session Loaded",
+                    f"Session loaded from {file_path}"
+                )
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Failed to load session: {e}")
 
     def export_markers_to_csv(self):
         """
-        Export the current (and updated) onset, offset, acrophase, and bathyphase markers
-        to a CSV file. This export now also includes a summary section at the end showing the
-        onset average, offset average, and dominant period (tau).
+        Export current (and updated) onset, offset, acrophase, and bathyphase markers to CSV.
+        Also appends a summary section at the end with average onset, offset, and the dominant period (tau).
         """
         if not hasattr(self, 'activity') or self.activity is None:
-            QtWidgets.QMessageBox.critical(self, "Error", "No analysis has been run yet. Please run an analysis before exporting markers.")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                "No analysis has been run yet. Please run an analysis before exporting markers."
+            )
             return
 
         options = QtWidgets.QFileDialog.Options()
@@ -746,7 +924,6 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
         if not file_path:
             return
 
-        # Determine the number of periods (using the maximum count from all marker lists)
         num_periods = max(
             len(self.activity.onset_times),
             len(self.activity.offset_times),
@@ -810,8 +987,10 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
             "Bathyphase": bathyphase_list
         })
 
-        # Compute updated summary metrics (onset average, offset average, and tau)
-        onset_av, offset_av = self.activity.calculate_mean_on_off(self.activity.onset_times, self.activity.offset_times)
+        onset_av, offset_av = self.activity.calculate_mean_on_off(
+            self.activity.onset_times,
+            self.activity.offset_times
+        )
         tau_str = f"{self.activity.tau:.2f}" if self.activity.tau is not None else ""
         summary_data = {
             "Metric": ["Onset Average", "Offset Average", "Dominant Period (Tau)"],
@@ -821,15 +1000,61 @@ class ActivityAnalysisGUI(QtWidgets.QMainWindow):
 
         try:
             with open(file_path, 'w', newline='') as f:
-                # Write the marker table
                 df.to_csv(f, index=False)
-                # Write a blank line
                 f.write("\n")
-                # Write the summary section
                 df_summary.to_csv(f, index=False)
-            QtWidgets.QMessageBox.information(self, "Export Successful", f"Markers exported to {file_path}")
+            QtWidgets.QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Markers exported to {file_path}"
+            )
         except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Export Failed", f"Failed to export markers: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to export markers: {e}"
+            )
+
+    def convert_awd_file(self):
+        """
+        Open a file dialog to select an AWD file, then convert it to CSV
+        using the convert_awd_to_csv function.
+        """
+        options = QtWidgets.QFileDialog.Options()
+        awd_file, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select AWD File",
+            "",
+            "AWD Files (*.awd);;All Files (*)",
+            options=options
+        )
+        if not awd_file:
+            return
+
+        default_csv_name = os.path.splitext(os.path.basename(awd_file))[0] + ".csv"
+        csv_file, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Converted CSV File",
+            default_csv_name,
+            "CSV Files (*.csv);;All Files (*)",
+            options=options
+        )
+        if not csv_file:
+            return
+
+        try:
+            convert_awd_to_csv(awd_file, csv_file)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Conversion Successful",
+                f"Converted file saved as {csv_file}"
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Conversion Failed",
+                f"Failed to convert file: {e}"
+            )
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
