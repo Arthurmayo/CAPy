@@ -13,6 +13,7 @@
   
 ## Features
 
+- **Data Cleaning and Convrsion**: Convert AWD files to CSV files compatible wtih CAPy
 - **Data Import**: Load collected activity data (see below for correct formatting)
 - **Session Management**: Save and load sessions to preserve your work.
 - **Analysis Options**:
