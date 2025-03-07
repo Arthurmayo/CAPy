@@ -5,14 +5,14 @@
 ## Table of Contents
 
 - [Features](#features)
-- [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Prerequisites](#prerequisites)
 - [License](#license)
-  
-## Features
 
+<img src = "actogram.png">  
+
+## Features
 - **Data Cleaning and Convrsion**: Convert AWD files to CSV files compatible wtih CAPy
 - **Data Import**: Load collected activity data (see below for correct formatting)
 - **Session Management**: Save and load sessions to preserve your work.
@@ -70,6 +70,7 @@
    ![Instructions](https://github.com/user-attachments/assets/bc91d135-d84d-44ed-ad8a-8a3f53c15d4c)
     - Data must be in the above format with a .csv extension to work in CAPy 
     - Click on **"Select Main Data File"** to load your primary activity CSV file.
+    - If data is in .awd format, use the built in converter to make this data accesible to CAPy
 
 4. **Configure Analysis Parameters**
 
