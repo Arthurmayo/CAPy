@@ -6,6 +6,7 @@ from scipy.signal import convolve, lombscargle
 from scipy.optimize import curve_fit
 from scipy.stats import chisquare
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 import os
 
 class ActivityAnalysis:
@@ -397,7 +398,6 @@ class ActivityAnalysis:
         ax.set_title(f'Single-Plotted Actogram for {self.event_type}')
         plt.colorbar(cax, ax=ax, orientation='vertical', label='Event Count')
 
-        from matplotlib.lines import Line2D
         legend_elements = []
         markers = []
         draggables = []
@@ -451,7 +451,9 @@ class ActivityAnalysis:
                                           markerfacecolor='m', markersize=8))
 
         plt.tight_layout()
-        markers = []  # (Marker creation code can be added here if needed.)
+        if legend_elements:
+            ax.legend(handles=legend_elements)
+            self.draggable_markers.extend(draggables)        
         return fig, markers
 
     def double_actogram(self, label_onset=False, label_offset=False,
@@ -514,7 +516,6 @@ class ActivityAnalysis:
         ax.axvline(x=self.tau, color='red', linestyle='-', label=f'{self.tau:.2f} Hours')
         plt.colorbar(cax, ax=ax, orientation='vertical', label='Event Count')
 
-        from matplotlib.lines import Line2D
         legend_elements = []
         markers = []
         draggables = []
@@ -568,7 +569,9 @@ class ActivityAnalysis:
             create_double_markers(self.bathophase_times, 'v', 'magenta', 'Bathyphase', is_tuple=True, label_type='bathyphase')
 
         plt.tight_layout()
-        markers = []
+        if legend_elements:
+            ax.legend(handles=legend_elements)
+            self.draggable_markers.extend(draggables)
         return fig, markers
 
     def plot_activity_profile(self, display_com=False, display_sem=False, base_on_tau=True):
